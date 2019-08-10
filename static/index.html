@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <title>OpenVPN Status</title>
+</head>
+<body>
+    <div class="container">
+        <div class="card mt-2" id="status_card">
+            <h5 class="card-header">OpenVPN server status</h5>
+            <div class="card-body" id="srv_card">
+                <h6 class="card-title" id="srv_title">Loading...</h6>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Real address</th>
+                        <th scope="col">Virtual address</th>
+                        <!-- <th scope="col">Virtual IPv6 address</th> -->
+                        <th scope="col">RX</th>
+                        <th scope="col">TX</th>
+                        <th scope="col">Connected since</th>
+                        <!-- <th scope="col">Username</th> -->
+                        <th scope="col">Client ID</th>
+                        <th scope="col">Peer ID</th>
+                    </tr>
+                    </thead>
+                    <tbody id="srv_clients">
+                    </tbody>
+                </table>
+                <p class="card-text"></p>
+            </div>
+        </div>
+    </div>
+    <script>
+        function bytesToSize(bytes) {
+            var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            if (bytes === 0) return '0 Byte';
+            var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+            return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+        };
+
+        var request = new XMLHttpRequest();
+        request.open("GET", "/api/status");
+        request.responseType = "text";
+        request.onload = function () {
+            var serverStatus;
+            if (request.status === 200) {
+                serverStatus = JSON.parse(request.response);
+                document.getElementById("srv_title").innerText = serverStatus.version;
+                for (var i = 0; i < serverStatus.clients.length; i++) {
+                    delete serverStatus.clients[i].virtual_ipv6_address;
+                    delete serverStatus.clients[i].username;
+
+                    serverStatus.clients[i].bytes_rx = bytesToSize(serverStatus.clients[i].bytes_rx);
+                    serverStatus.clients[i].bytes_tx = bytesToSize(serverStatus.clients[i].bytes_tx);
+                    var clientRow = document.createElement("tr");
+
+                    for (var property in serverStatus.clients[i]) {
+                        var propCell = document.createElement("td");
+                        propCell.innerText = serverStatus.clients[i][property];
+                        clientRow.append(propCell);
+                    }
+
+                    document.getElementById("srv_clients").append(clientRow);
+                }
+            } else {
+                var card = document.getElementById("status_card");
+                card.className = "card text-white bg-danger mt-2";
+                document.getElementById("srv_card").innerHTML = request.response;
+            }
+        };
+        request.send();
+    </script>
+</body>
+</html>

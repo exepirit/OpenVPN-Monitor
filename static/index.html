@@ -41,6 +41,20 @@
             return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
         };
 
+        // https://stackoverflow.com/a/6078873
+        function timeConverter(UNIX_timestamp){
+            var a = new Date(UNIX_timestamp * 1000);
+            var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            var year = a.getFullYear();
+            var month = months[a.getMonth()];
+            var date = a.getDate();
+            var hour = a.getHours();
+            var min = a.getMinutes();
+            var sec = a.getSeconds();
+            var time = date + ' ' + month + ' ' + year + ' ' + hour + ':' + min + ':' + sec ;
+            return time;
+        }
+
         var request = new XMLHttpRequest();
         request.open("GET", "/api/status");
         request.responseType = "text";
@@ -52,6 +66,8 @@
                 for (var i = 0; i < serverStatus.clients.length; i++) {
                     delete serverStatus.clients[i].virtual_ipv6_address;
                     delete serverStatus.clients[i].username;
+                    var conn_since = timeConverter(serverStatus.clients[i].connected_since);
+                    serverStatus.clients[i].connected_since = conn_since;
 
                     serverStatus.clients[i].bytes_rx = bytesToSize(serverStatus.clients[i].bytes_rx);
                     serverStatus.clients[i].bytes_tx = bytesToSize(serverStatus.clients[i].bytes_tx);

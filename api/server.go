@@ -1,9 +1,7 @@
 package api
 
 import (
-	"bufio"
 	"fmt"
-	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -11,38 +9,38 @@ import (
 )
 
 type Server struct {
-	Address string
+	Address    string
+	connection net.Conn
+	lastStatus ServerStatus
+	lastUpdate time.Time
+}
+
+func (server *Server) Connect() error {
+	d := net.Dialer{Timeout: 5 * time.Second}
+	var err error
+	server.connection, err = d.Dial("tcp", server.Address)
+	return err
+}
+
+func (server *Server) Close() {
+	server.connection.Close()
+}
+
+func (server *Server) IsConnected() bool {
+	return false
 }
 
 func (server *Server) RequestStatus() (ServerStatus, error) {
-	d := net.Dialer{Timeout: 5 * time.Second}
-	conn, err := d.Dial("tcp", server.Address)
-	if err != nil {
-		return ServerStatus{}, err
-	}
-	defer conn.Close()
-
-	// check invite
-	if message, err := bufio.NewReader(conn).ReadString('\n'); err != nil {
-		return ServerStatus{}, err
-	} else {
-		if !strings.HasPrefix(message, ">INFO:OpenVPN Management Interface") {
-			return ServerStatus{}, fmt.Errorf("server return invalid invite:\n%s", message)
-		}
-	}
-
-	log.Print("Connected to OpenVPN management")
-
 	var status ServerStatus
 	status.Clients = make([]ConnectedClient, 0)
-	conn.Write([]byte("status 2\n")) // request status in CSV
+	server.connection.Write([]byte("status 2\n")) // request status in CSV
 
 	var c = make(chan string)
 	go func() {
 		buffer := make([]byte, 4096)
 		msg := ""
 		for {
-			n, _ := conn.Read(buffer)
+			n, _ := server.connection.Read(buffer)
 			msg += string(buffer[:n])
 			lines := strings.Split(msg, "\n")
 			for _, l := range lines {
@@ -83,6 +81,8 @@ func (server *Server) RequestStatus() (ServerStatus, error) {
 		}
 	}
 
+	server.lastStatus = status
+	server.lastUpdate = time.Now()
 	return status, nil
 }
 

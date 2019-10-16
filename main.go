@@ -11,14 +11,14 @@ import (
 
 type Configuration struct {
 	OpenVPNAddress string `json:"openvpn_address"`
-	HandleAddress string `json:"http_address"`
+	HandleAddress  string `json:"http_address"`
 }
 
 func HandleHTTP(address string, server *api.Server) {
 	srv := &http.Server{
-		ReadTimeout: 5 * time.Second,
+		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
-		Addr: address,
+		Addr:         address,
 	}
 
 	http.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
@@ -45,5 +45,9 @@ func main() {
 		panic(err)
 	}
 	server := api.Server{Address: config.OpenVPNAddress}
+	if err := server.Connect(); err != nil {
+		log.Fatal(err)
+	}
+	defer server.Close()
 	HandleHTTP(config.HandleAddress, &server)
 }

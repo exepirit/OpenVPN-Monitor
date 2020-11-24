@@ -35,59 +35,66 @@
     </div>
     <script>
         function bytesToSize(bytes) {
-            var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
             if (bytes === 0) return '0 Byte';
-            var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
-            return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
-        };
+            let i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return Math.round(bytes / Math.pow(1024, i)) + ' ' + sizes[i];
+        }
 
         // https://stackoverflow.com/a/6078873
         function timeConverter(UNIX_timestamp){
-            var a = new Date(UNIX_timestamp * 1000);
-            var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-            var year = a.getFullYear();
-            var month = months[a.getMonth()];
-            var date = a.getDate();
-            var hour = a.getHours();
-            var min = a.getMinutes();
-            var sec = a.getSeconds();
-            var time = date + ' ' + month + ' ' + year + ' ' + hour + ':' + min + ':' + sec ;
-            return time;
+            const a = new Date(UNIX_timestamp * 1000);
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const year = a.getFullYear();
+            const month = months[a.getMonth()];
+            const date = a.getDate();
+            const hour = a.getHours();
+            const min = a.getMinutes();
+            const sec = a.getSeconds();
+            return date + ' ' + month + ' ' + year + ' ' + hour + ':' + min + ':' + sec;
         }
 
-        var request = new XMLHttpRequest();
-        request.open("GET", "/api/status");
-        request.responseType = "text";
-        request.onload = function () {
-            var serverStatus;
-            if (request.status === 200) {
-                serverStatus = JSON.parse(request.response);
-                document.getElementById("srv_title").innerText = serverStatus.version;
-                for (var i = 0; i < serverStatus.clients.length; i++) {
-                    delete serverStatus.clients[i].virtual_ipv6_address;
-                    delete serverStatus.clients[i].username;
-                    var conn_since = timeConverter(serverStatus.clients[i].connected_since);
-                    serverStatus.clients[i].connected_since = conn_since;
+        function renderError(text) {
+            let card = document.getElementById("status_card");
+            card.className = "card text-white bg-danger mt-2";
+            document.getElementById("srv_card").innerHTML = text;
+        }
 
-                    serverStatus.clients[i].bytes_rx = bytesToSize(serverStatus.clients[i].bytes_rx);
-                    serverStatus.clients[i].bytes_tx = bytesToSize(serverStatus.clients[i].bytes_tx);
-                    var clientRow = document.createElement("tr");
-
-                    for (var property in serverStatus.clients[i]) {
-                        var propCell = document.createElement("td");
-                        propCell.innerText = serverStatus.clients[i][property];
-                        clientRow.append(propCell);
-                    }
-
-                    document.getElementById("srv_clients").append(clientRow);
+        function getClientsList(callback) {
+            let request = new XMLHttpRequest();
+            request.open("GET", "/api/status");
+            request.responseType = "text";
+            request.onload = function () {
+                if (request.status === 200) {
+                    callback(request);
+                } else {
+                    renderError(request.response)
                 }
-            } else {
-                var card = document.getElementById("status_card");
-                card.className = "card text-white bg-danger mt-2";
-                document.getElementById("srv_card").innerHTML = request.response;
             }
-        };
-        request.send();
+            request.send();
+        }
+
+        getClientsList(function (request) {
+            const serverStatus = JSON.parse(request.response);
+            document.getElementById("srv_title").innerText = serverStatus.version;
+            for (let i = 0; i < serverStatus.clients.length; i++) {
+                delete serverStatus.clients[i].virtual_ipv6_address;
+                delete serverStatus.clients[i].username;
+                serverStatus.clients[i].connected_since = timeConverter(serverStatus.clients[i].connected_since);
+
+                serverStatus.clients[i].bytes_rx = bytesToSize(serverStatus.clients[i].bytes_rx);
+                serverStatus.clients[i].bytes_tx = bytesToSize(serverStatus.clients[i].bytes_tx);
+                const clientRow = document.createElement("tr");
+
+                for (let property in serverStatus.clients[i]) {
+                    const propCell = document.createElement("td");
+                    propCell.innerText = serverStatus.clients[i][property];
+                    clientRow.append(propCell);
+                }
+
+                document.getElementById("srv_clients").append(clientRow);
+            }
+        });
     </script>
 </body>
 </html>

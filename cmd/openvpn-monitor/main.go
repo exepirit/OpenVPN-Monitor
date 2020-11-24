@@ -1,12 +1,13 @@
 package main
 
 import (
-	"OpenVPN-Monitor/api"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/exepirit/OpenVPN-Monitor/internal/api"
 )
 
 type Configuration struct {

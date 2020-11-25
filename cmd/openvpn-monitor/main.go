@@ -2,12 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/gin-gonic/gin"
 	"log"
-	"net/http"
 	"os"
-	"time"
 
 	"github.com/exepirit/OpenVPN-Monitor/internal/api"
+	"github.com/exepirit/OpenVPN-Monitor/internal/openvpn"
 )
 
 type Configuration struct {
@@ -15,24 +15,12 @@ type Configuration struct {
 	HandleAddress  string `json:"http_address"`
 }
 
-func HandleHTTP(address string, server *api.Server) {
-	srv := &http.Server{
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		Addr:         address,
-	}
-
-	http.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
-		api.Status(w, r, server)
-	})
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "static/index.html")
-	})
-
-	log.Print("Handling ", address)
-	if err := srv.ListenAndServe(); err != nil {
-		panic(err)
+func HandleHTTP(address string, server *openvpn.Server) {
+	httpSrv := gin.Default()
+	httpSrv.GET("/api/status", api.StatusHandler(server))
+	httpSrv.StaticFile("/", "static/index.html")
+	if err := httpSrv.Run(address); err != nil {
+		log.Fatal(err)
 	}
 }
 
@@ -40,15 +28,18 @@ func main() {
 	config := Configuration{}
 	cfgFile, err := os.Open("config.json")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
+
 	if err := json.NewDecoder(cfgFile).Decode(&config); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	server := api.Server{Address: config.OpenVPNAddress}
+
+	server := openvpn.Server{Address: config.OpenVPNAddress}
 	if err := server.Connect(); err != nil {
 		log.Fatal(err)
 	}
 	defer server.Close()
+
 	HandleHTTP(config.HandleAddress, &server)
 }

@@ -1,4 +1,4 @@
-package api
+package openvpn
 
 type ConnectedClient struct {
 	CommonName         string `json:"name"`

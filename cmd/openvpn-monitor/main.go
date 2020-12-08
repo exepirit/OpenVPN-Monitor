@@ -7,24 +7,13 @@ import (
 	"os"
 
 	"github.com/exepirit/OpenVPN-Monitor/internal/api"
-	"github.com/exepirit/OpenVPN-Monitor/internal/openvpn"
 )
 
-func HandleHTTP(address string, server *openvpn.Server) error {
+func HandleHTTP(address string, serverAddr string) error {
 	httpSrv := gin.Default()
-	httpSrv.GET("/api/status", api.StatusHandler(server))
+	httpSrv.GET("/api/status", api.StatusHandler(serverAddr))
 	httpSrv.StaticFile("/", "static/index.html")
 	return httpSrv.Run(address)
-}
-
-func appFunc(ctx *cli.Context) error {
-	server := openvpn.Server{Address: ctx.String("server")}
-	if err := server.Connect(); err != nil {
-		log.Fatal(err)
-	}
-	defer server.Close()
-
-	return HandleHTTP(ctx.String("bind"), &server)
 }
 
 func main() {
@@ -44,7 +33,9 @@ func main() {
 				DefaultText: "0.0.0.0:8000",
 			},
 		},
-		Action: appFunc,
+		Action: func(ctx *cli.Context) error {
+			return HandleHTTP(ctx.String("bind"), ctx.String("server"))
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {

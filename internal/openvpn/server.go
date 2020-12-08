@@ -2,6 +2,7 @@ package openvpn
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -32,7 +33,11 @@ func (server *Server) IsConnected() bool {
 	return false
 }
 
-func (server *Server) RequestStatus() (ServerStatus, error) {
+func (server *Server) RequestStatus(ctx context.Context) (ServerStatus, error) {
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = server.connection.SetReadDeadline(deadline)
+	}
+
 	var status ServerStatus
 	status.Clients = make([]ConnectedClient, 0)
 	if _, err := server.connection.Write([]byte("status 2\n")); err != nil {
@@ -77,6 +82,7 @@ func readLines(r io.Reader) <-chan string {
 			l := strings.Replace(line, "\r", "", 1)
 			output <- l
 		}
+		close(output)
 	}()
 	return output
 }

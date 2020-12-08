@@ -1,23 +1,20 @@
 package api
 
 import (
-	"encoding/json"
-	"log"
+	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/exepirit/OpenVPN-Monitor/internal/openvpn"
 )
 
-func Status(w http.ResponseWriter, r *http.Request, server *Server) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "405 - Method Not Allowed ", http.StatusMethodNotAllowed)
-		return
+func StatusHandler(server *openvpn.Server) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		status, err := server.RequestStatus()
+		if err != nil {
+			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		ctx.JSON(http.StatusOK, status)
 	}
-	log.Printf("Status request from %s", r.RemoteAddr)
-	status, err := server.RequestStatus()
-	if err != nil {
-		http.Error(w, "500 - Internal Server Error", http.StatusInternalServerError)
-		log.Print("[ERR] ", err)
-		return
-	}
-	w.Header().Add("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
 }

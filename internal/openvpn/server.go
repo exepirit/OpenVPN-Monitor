@@ -1,7 +1,9 @@
-package api
+package openvpn
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 	"strings"
@@ -23,7 +25,7 @@ func (server *Server) Connect() error {
 }
 
 func (server *Server) Close() {
-	server.connection.Close()
+	_ = server.connection.Close()
 }
 
 func (server *Server) IsConnected() bool {
@@ -33,31 +35,12 @@ func (server *Server) IsConnected() bool {
 func (server *Server) RequestStatus() (ServerStatus, error) {
 	var status ServerStatus
 	status.Clients = make([]ConnectedClient, 0)
-	server.connection.Write([]byte("status 2\n")) // request status in CSV
+	if _, err := server.connection.Write([]byte("status 2\n")); err != nil {
+		return ServerStatus{}, err
+	}
 
-	var c = make(chan string)
-	go func() {
-		buffer := make([]byte, 4096)
-		msg := ""
-		for {
-			n, _ := server.connection.Read(buffer)
-			msg += string(buffer[:n])
-			lines := strings.Split(msg, "\n")
-			for _, l := range lines {
-				l := strings.Replace(l, "\r", "", 1)
-				c <- l
-				if strings.HasPrefix(l, "END") {
-					return
-				}
-			}
-			msg = lines[len(lines)-1]
-		}
-	}()
-
-	for {
-		line := <-c
+	for line := range readLines(server.connection) {
 		csv := strings.Split(line, ",")
-
 		if len(csv) == 0 {
 			continue
 		}
@@ -69,15 +52,11 @@ func (server *Server) RequestStatus() (ServerStatus, error) {
 			i, _ := strconv.Atoi(csv[2])
 			status.Time = i
 		case "CLIENT_LIST":
-			if client, err := ParseClient(csv[1:]); err != nil {
+			if client, err := parseClient(csv[1:]); err != nil {
 				fmt.Println(err)
 			} else {
 				status.Clients = append(status.Clients, client)
 			}
-		}
-
-		if strings.HasPrefix(line, "END") {
-			break
 		}
 	}
 
@@ -86,7 +65,23 @@ func (server *Server) RequestStatus() (ServerStatus, error) {
 	return status, nil
 }
 
-func ParseClient(csv []string) (ConnectedClient, error) {
+func readLines(r io.Reader) <-chan string {
+	scanner := bufio.NewScanner(r)
+	output := make(chan string)
+	go func() {
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "END") {
+				break
+			}
+			l := strings.Replace(line, "\r", "", 1)
+			output <- l
+		}
+	}()
+	return output
+}
+
+func parseClient(csv []string) (ConnectedClient, error) {
 	if len(csv) != 11 {
 		return ConnectedClient{}, fmt.Errorf("invalid response")
 	}

@@ -82,6 +82,7 @@ func readLines(r io.Reader) <-chan string {
 			l := strings.Replace(line, "\r", "", 1)
 			output <- l
 		}
+		close(output)
 	}()
 	return output
 }
